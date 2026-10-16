@@ -71,7 +71,11 @@ a:focus-visible,button:focus-visible,[role=tab]:focus-visible{outline:2px solid 
 .dots span{display:inline-block;width:10px;height:10px;border-radius:50%;background:#3a4680;margin-right:6px}
 .run{background:#ffb547;color:#1a1300;border:0;font:500 13px var(--mono);padding:6px 12px;border-radius:6px;cursor:pointer}
 .run:disabled{opacity:.5;cursor:default}
-.term pre{margin:0;padding:14px 16px;min-height:150px;white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.term pre{margin:0;padding:14px 16px;min-height:150px;max-height:380px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.term .prompt{display:flex;align-items:baseline;gap:1ch}
+.term input{flex:1;min-width:0;background:none;border:0;padding:0;color:#dfe6ff;font:inherit;outline:none;caret-color:#ffb547}
+.term input::placeholder{color:#5f6aa3}
+@media (pointer:coarse){.term input{font-size:16px}}
 .term .p{color:#7fd4ff}.term .g{color:#8be0a4}.term .y{color:#ffcf7a}.term .r{color:#ff9d9d}.term .d{color:#8c96c8}
 .cursor{display:inline-block;width:8px;height:1em;background:#dfe6ff;vertical-align:-2px;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -437,14 +441,70 @@ akhila.<span class="k">talk</span>()  <span class="c">// you: listen(). this is 
     ['g','✓ autonomy module online'],
     ['r','! competitive mode enabled, cannot be disabled'],
     ['g','\nadded 1 AI/ML engineer in 4.2s.'],
-    ['p','run `akhila.talk()` to start. please listen.']
+    ['p','type akhila.talk() below, or try "help".']
   ];
+  // interactive prompt
+  var talkLines=[
+    "okay so. you know how a spacecraft can't always wait for Earth to reply?",
+    "it has to make its own decisions. that's what I work on at ORBTRIX.",
+    "and honestly it's the coolest thing, because the models have to—",
+    "[ 14 minutes later ]",
+    "…anyway, that's also why I have 47 tabs open.",
+    "(you listened the whole time. she likes you already.)"
+  ];
+  function print(cls,txt){var s=document.createElement('span');s.className=cls;s.textContent=txt+'\n';out.appendChild(s);out.scrollTop=out.scrollHeight;}
+  var cmds={
+    'help':[['d','commands:'],['g','  akhila.talk()     start a conversation'],['g','  listen()          the correct response'],['g','  skills            what she works with'],['g','  contact           how to reach her'],['g','  whoami            about you'],['g','  sudo hire akhila  you know what this does'],['g','  clear             clean the terminal (unlike her room)']],
+    'akhila.talk()':talkLines.map(function(t,i){return [i===3?'d':i===5?'p':'y',t];}),
+    'listen()':[['g','✓ listening mode enabled'],['d','great choice. now run akhila.talk()']],
+    'skills':[['g','python, pytorch, tensorflow, scikit-learn, transformers,'],['g','reinforcement learning, opencv, numpy, pandas'],['d','full list in the Dependencies tab']],
+    'contact':[['g','email     akhilaanil619@gmail.com'],['g','github    github.com/akhilaah'],['g','linkedin  linkedin.com/in/akhila-anil19']],
+    'whoami':[['g','a visitor with excellent taste in portfolios']],
+    'sudo hire akhila':[['d','[sudo] password for recruiter: ••••••••'],['g','✓ permission granted. opening contact…']],
+    'tabs':[['y','currently open: 47+'],['r','closing tabs is not supported in this version']]
+  };
+  var aliases={'talk':'akhila.talk()','akhila.talk':'akhila.talk()','talk()':'akhila.talk()','listen':'listen()','hire':'sudo hire akhila','hire akhila':'sudo hire akhila','ls':'help','?':'help'};
+  function run(v){
+    var k=v.toLowerCase().replace(/\s+/g,' ').trim();k=aliases[k]||k;
+    if(!k){showPrompt();return;}
+    if(k==='clear'){out.innerHTML='';showPrompt();return;}
+    var ls=cmds[k];
+    if(!ls){print('r','command not found: '+v+'. try "help"');showPrompt();return;}
+    var j=0;
+    (function step(){
+      if(j>=ls.length){
+        if(k==='sudo hire akhila'){select(document.getElementById('t-contact'));document.querySelector('.tabs').scrollIntoView({behavior:reduce?'auto':'smooth'});}
+        showPrompt();return;
+      }
+      print(ls[j][0],ls[j][1]);j++;
+      setTimeout(step,reduce?0:(k==='akhila.talk()'?900:120));
+    })();
+  }
+  function showPrompt(){
+    var old=out.querySelector('.prompt');if(old)old.remove();
+    var row=document.createElement('label');row.className='prompt';
+    row.innerHTML='<span class="p">$</span> ';
+    var inp=document.createElement('input');
+    inp.type='text';inp.setAttribute('aria-label','Type a terminal command');inp.placeholder='akhila.talk()';
+    inp.autocomplete='off';inp.setAttribute('autocapitalize','off');inp.setAttribute('autocorrect','off');inp.spellcheck=false;inp.enterKeyHint='go';
+    row.appendChild(inp);out.appendChild(row);out.scrollTop=out.scrollHeight;
+    if(matchMedia('(pointer:fine)').matches)inp.focus({preventScroll:true});
+    inp.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;e.preventDefault();
+      var v=inp.value;row.remove();print('p','$ '+v);run(v);
+    });
+  }
+
+  // console easter egg for curious devs
+  window.akhila={talk:function(){talkLines.forEach(function(t){console.log(t)});return '👋 thanks for listening';}};
+  try{console.log('%cpsst. you opened the console. try akhila.talk()','color:#ffb547;font:600 14px monospace');}catch(e){}
+
   btn.addEventListener('click',function(){
     btn.disabled=true;btn.textContent='Installing…';
     out.innerHTML='<span class="p">$</span> pkg install akhila-anil\n';
     var i=0;
     (function next(){
-      if(i>=lines.length){out.insertAdjacentHTML('beforeend','<span class="cursor"></span>');btn.disabled=false;btn.textContent='Run again';return;}
+      if(i>=lines.length){btn.disabled=false;btn.textContent='Run again';showPrompt();return;}
       var s=document.createElement('span');s.className=lines[i][0];s.textContent=lines[i][1]+'\n';out.appendChild(s);i++;
       setTimeout(next,reduce?0:380);
     })();
